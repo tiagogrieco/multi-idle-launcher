@@ -123,9 +123,12 @@ async function renderExtPanel() {
     </div>`).join('');
   extPanel.innerHTML = `
     ${items || '<div class="ext-hint">Nenhuma extensão adicionada.</div>'}
-    <button id="extStoreBtn">+ Da Chrome Web Store (cole a URL)</button>
+    <div class="ext-add-row">
+      <input id="extStoreUrl" type="text" placeholder="Cole a URL da Chrome Web Store" />
+      <button id="extStoreBtn">Instalar</button>
+    </div>
     <button id="extAddBtn">+ De pasta descompactada</button>
-    <div class="ext-hint">Web Store: cole o link da página da extensão que o app baixa e instala sozinho. Aplica em todos os slots. O botão "popup" abre a janelinha da extensão.</div>`;
+    <div class="ext-hint">Cole o link da página da extensão na Web Store e clique Instalar — o app baixa e aplica em todos os slots. O botão "popup" abre a janelinha da extensão.</div>`;
 }
 
 btnExt.addEventListener('click', async () => {
@@ -141,13 +144,18 @@ extPanel.addEventListener('click', async (e) => {
     statusEl.textContent = res.ok ? 'extensão adicionada (slots recarregados)' : `extensão: ${res.error}`;
     await renderExtPanel();
   } else if (btn.id === 'extStoreBtn') {
-    const idOrUrl = prompt('Cole a URL da extensão na Chrome Web Store (ou o ID de 32 letras):');
-    if (idOrUrl) {
-      statusEl.textContent = 'baixando extensão…';
-      const res = await window.launcher.extAddStore(idOrUrl.trim());
-      statusEl.textContent = res.ok ? 'extensão instalada (slots recarregados)' : `extensão: ${res.error}`;
-      await renderExtPanel();
+    const input = document.getElementById('extStoreUrl');
+    const idOrUrl = (input && input.value || '').trim();
+    if (!idOrUrl) {
+      statusEl.textContent = 'cole a URL da extensão no campo antes de clicar Instalar';
+      return;
     }
+    btn.textContent = 'baixando…';
+    btn.disabled = true;
+    statusEl.textContent = 'baixando extensão…';
+    const res = await window.launcher.extAddStore(idOrUrl);
+    statusEl.textContent = res.ok ? 'extensão instalada (slots recarregados)' : `extensão: ${res.error}`;
+    await renderExtPanel();
   } else if (btn.dataset.popup) {
     const res = await window.launcher.extPopup(btn.dataset.popup);
     if (!res.ok) statusEl.textContent = `popup: ${res.error}`;
