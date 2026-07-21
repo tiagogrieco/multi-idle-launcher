@@ -1,7 +1,7 @@
 const { app, BrowserWindow, BrowserView, ipcMain, session, powerSaveBlocker, dialog, shell, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 
 const UPDATE_REPO = 'tiagogrieco/multi-idle-launcher';
 
@@ -593,4 +593,70 @@ ipcMain.handle('launcher:check-update', async () => {
 ipcMain.handle('launcher:open-external', (_evt, { url }) => {
   shell.openExternal(url);
   return true;
+});
+
+// Baixa a atualização, troca os arquivos e reinicia o app sozinho
+function sendUpdateProgress(msg) {
+  if (mainWindow) mainWindow.webContents.send('launcher:update-progress', msg);
+}
+
+ipcMain.handle('launcher:download-update', async () => {
+  try {
+    if (!app.isPackaged) {
+      return { ok: false, error: 'atualização automática só funciona no .exe (aqui você está rodando via npm start)' };
+    }
+    sendUpdateProgress('verificando release…');
+    const res = await net.fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`, {
+      headers: { 'User-Agent': 'multi-idle-launcher' },
+    });
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+    const data = await res.json();
+    if (!isNewerVersion(data.tag_name || '', app.getVersion())) {
+      return { ok: false, error: 'nenhuma atualização disponível' };
+    }
+    const asset = (data.assets || []).find((a) => a.name && a.name.endsWith('.zip'));
+    if (!asset) return { ok: false, error: 'a release não tem arquivo .zip anexado' };
+
+    const tmp = path.join(app.getPath('temp'), 'mil-update');
+    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.mkdirSync(tmp, { recursive: true });
+    const zipPath = path.join(tmp, 'update.zip');
+
+    sendUpdateProgress(`baixando ${data.tag_name} (${Math.round(asset.size / 1024 / 1024)} MB)…`);
+    const dl = await net.fetch(asset.browser_download_url, { headers: { 'User-Agent': 'multi-idle-launcher' } });
+    if (!dl.ok) return { ok: false, error: `download falhou (HTTP ${dl.status})` };
+    fs.writeFileSync(zipPath, Buffer.from(await dl.arrayBuffer()));
+
+    sendUpdateProgress('extraindo…');
+    const extractDir = path.join(tmp, 'extracted');
+    await unzipWithPowershell(zipPath, extractDir);
+
+    const hasExe = (dir) => fs.existsSync(path.join(dir, 'MultiIdleLauncher.exe'));
+    let srcDir = extractDir;
+    if (!hasExe(srcDir)) {
+      const sub = fs.readdirSync(extractDir)
+        .map((n) => path.join(extractDir, n))
+        .find((p) => fs.statSync(p).isDirectory() && hasExe(p));
+      if (!sub) return { ok: false, error: 'zip da atualização não contém MultiIdleLauncher.exe' };
+      srcDir = sub;
+    }
+
+    sendUpdateProgress('aplicando e reiniciando…');
+    const destDir = path.dirname(app.getPath('exe'));
+    const batPath = path.join(tmp, 'apply-update.bat');
+    const bat = [
+      '@echo off',
+      'timeout /t 2 /nobreak >nul',
+      `robocopy "${srcDir}" "${destDir}" /E /IS /IT /R:5 /W:2 >nul`,
+      `start "" "${path.join(destDir, 'MultiIdleLauncher.exe')}"`,
+      'exit',
+    ].join('\r\n');
+    fs.writeFileSync(batPath, bat);
+    const child = spawn('cmd.exe', ['/c', batPath], { detached: true, stdio: 'ignore', windowsHide: true });
+    child.unref();
+    setTimeout(() => app.quit(), 500);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
 });

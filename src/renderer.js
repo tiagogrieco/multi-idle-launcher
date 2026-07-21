@@ -185,9 +185,19 @@ async function checkForUpdate(silent) {
     return;
   }
   if (res.hasUpdate) {
-    btnUpdate.textContent = `Atualização ${res.latest} disponível!`;
+    btnUpdate.textContent = `Atualizar para ${res.latest}`;
     btnUpdate.classList.add('on');
-    btnUpdate.onclick = () => window.launcher.openExternal(res.url);
+    btnUpdate.onclick = async () => {
+      btnUpdate.disabled = true;
+      btnUpdate.textContent = 'atualizando…';
+      const r = await window.launcher.downloadUpdate();
+      if (!r.ok) {
+        statusEl.textContent = `atualização: ${r.error}`;
+        btnUpdate.disabled = false;
+        btnUpdate.textContent = `Atualizar para ${res.latest}`;
+      }
+      // se ok, o app fecha e reabre sozinho já atualizado
+    };
   } else {
     btnUpdate.textContent = 'Verificar atualização';
     btnUpdate.classList.remove('on');
@@ -197,6 +207,10 @@ async function checkForUpdate(silent) {
 }
 
 btnUpdate.onclick = () => checkForUpdate(false);
+
+window.launcher.onUpdateProgress((msg) => {
+  statusEl.textContent = `atualização: ${msg}`;
+});
 
 async function refreshProfiles() {
   const names = await window.launcher.listProfiles();

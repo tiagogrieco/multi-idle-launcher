@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('launcher', {
   extAddStore: (idOrUrl) => ipcRenderer.invoke('launcher:ext-add-store', { idOrUrl }),
   extPopup: (extPath) => ipcRenderer.invoke('launcher:ext-popup', { extPath }),
   checkUpdate: () => ipcRenderer.invoke('launcher:check-update'),
+  downloadUpdate: () => ipcRenderer.invoke('launcher:download-update'),
+  onUpdateProgress: (cb) => ipcRenderer.on('launcher:update-progress', (_evt, msg) => cb(msg)),
   openExternal: (url) => ipcRenderer.invoke('launcher:open-external', { url }),
   onState: (cb) => ipcRenderer.on('launcher:state', (_evt, data) => cb(data)),
 });
