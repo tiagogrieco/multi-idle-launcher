@@ -118,12 +118,16 @@ async function renderExtPanel() {
   const items = list.map((e) => `
     <div class="ext-item">
       <span title="${e.path}">${e.name}</span>
-      <button data-ext="${e.path.replace(/"/g, '&quot;')}">remover</button>
+      <span>
+        <button data-popup="${e.path.replace(/"/g, '&quot;')}" title="Abrir a janelinha (popup) da extensão">popup</button>
+        <button data-ext="${e.path.replace(/"/g, '&quot;')}">remover</button>
+      </span>
     </div>`).join('');
   extPanel.innerHTML = `
     ${items || '<div class="ext-hint">Nenhuma extensão adicionada.</div>'}
-    <button id="extAddBtn">+ Adicionar (pasta descompactada)</button>
-    <div class="ext-hint">Escolha a pasta da extensão com o manifest.json. Aplica em todos os slots. Extensões simples/content-scripts funcionam melhor.</div>`;
+    <button id="extStoreBtn">+ Da Chrome Web Store (cole a URL)</button>
+    <button id="extAddBtn">+ De pasta descompactada</button>
+    <div class="ext-hint">Web Store: cole o link da página da extensão que o app baixa e instala sozinho. Aplica em todos os slots. O botão "popup" abre a janelinha da extensão.</div>`;
 }
 
 btnExt.addEventListener('click', async () => {
@@ -138,6 +142,17 @@ extPanel.addEventListener('click', async (e) => {
     const res = await window.launcher.extAdd();
     statusEl.textContent = res.ok ? 'extensão adicionada (slots recarregados)' : `extensão: ${res.error}`;
     await renderExtPanel();
+  } else if (btn.id === 'extStoreBtn') {
+    const idOrUrl = prompt('Cole a URL da extensão na Chrome Web Store (ou o ID de 32 letras):');
+    if (idOrUrl) {
+      statusEl.textContent = 'baixando extensão…';
+      const res = await window.launcher.extAddStore(idOrUrl.trim());
+      statusEl.textContent = res.ok ? 'extensão instalada (slots recarregados)' : `extensão: ${res.error}`;
+      await renderExtPanel();
+    }
+  } else if (btn.dataset.popup) {
+    const res = await window.launcher.extPopup(btn.dataset.popup);
+    if (!res.ok) statusEl.textContent = `popup: ${res.error}`;
   } else if (btn.dataset.ext) {
     await window.launcher.extRemove(btn.dataset.ext);
     statusEl.textContent = 'extensão removida';

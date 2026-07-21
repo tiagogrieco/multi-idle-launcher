@@ -1,6 +1,7 @@
 const { app, BrowserWindow, BrowserView, ipcMain, session, powerSaveBlocker, dialog, shell, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { execFile } = require('child_process');
 
 const UPDATE_REPO = 'tiagogrieco/multi-idle-launcher';
 
@@ -407,6 +408,95 @@ ipcMain.handle('launcher:ext-add', async () => {
     await loadExtensionsIntoSession(session.fromPartition(v.partition));
     v.view.webContents.reload();
   }
+  return { ok: true };
+});
+
+// Instala extensão direto da Chrome Web Store (baixa o .crx e extrai)
+function unzipWithPowershell(zipPath, destDir) {
+  return new Promise((resolve, reject) => {
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-Command', `Expand-Archive -LiteralPath '${zipPath}' -DestinationPath '${destDir}' -Force`],
+      { windowsHide: true },
+      (err) => (err ? reject(err) : resolve())
+    );
+  });
+}
+
+function crxToZipBuffer(buf) {
+  // CRX3: "Cr24" + versão (4 bytes) + tamanho do header (4 bytes LE) + header + zip
+  if (buf.length > 12 && buf.toString('ascii', 0, 4) === 'Cr24') {
+    const headerLen = buf.readUInt32LE(8);
+    const start = 12 + headerLen;
+    if (start < buf.length) return buf.subarray(start);
+  }
+  // fallback: procura a assinatura do zip (PK\x03\x04)
+  const idx = buf.indexOf(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+  return idx >= 0 ? buf.subarray(idx) : null;
+}
+
+ipcMain.handle('launcher:ext-add-store', async (_evt, { idOrUrl }) => {
+  const m = String(idOrUrl || '').match(/[a-p]{32}/);
+  if (!m) return { ok: false, error: 'cole a URL da Web Store ou o ID (32 letras)' };
+  const id = m[0];
+  try {
+    const crxUrl = `https://clients2.google.com/service/update2/crx?response=redirect&prodversion=126.0.6478.127&acceptformat=crx2,crx3&x=id%3D${id}%26uc`;
+    const res = await net.fetch(crxUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) return { ok: false, error: `download falhou (HTTP ${res.status})` };
+    const buf = Buffer.from(await res.arrayBuffer());
+    const zipBuf = crxToZipBuffer(buf);
+    if (!zipBuf) return { ok: false, error: 'arquivo baixado não parece um .crx válido' };
+
+    const extRoot = path.join(app.getPath('userData'), 'extensions');
+    fs.mkdirSync(extRoot, { recursive: true });
+    const extDir = path.join(extRoot, id);
+    const zipPath = path.join(extRoot, `${id}.zip`);
+    fs.rmSync(extDir, { recursive: true, force: true });
+    fs.writeFileSync(zipPath, zipBuf);
+    await unzipWithPowershell(zipPath, extDir);
+    fs.rmSync(zipPath, { force: true });
+    // o Chrome/Electron rejeita pastas _metadata em extensão descompactada
+    fs.rmSync(path.join(extDir, '_metadata'), { recursive: true, force: true });
+    if (!fs.existsSync(path.join(extDir, 'manifest.json'))) {
+      return { ok: false, error: 'extensão extraída sem manifest.json' };
+    }
+
+    const list = settings.extensions || [];
+    if (!list.includes(extDir)) {
+      settings = { ...settings, extensions: [...list, extDir] };
+      saveSettings(settings);
+    }
+    for (const v of views) {
+      if (!v.view) continue;
+      await loadExtensionsIntoSession(session.fromPartition(v.partition));
+      v.view.webContents.reload();
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+});
+
+// Abre o popup da extensão (o "botão" que apareceria na barra do Chrome) numa janela própria
+ipcMain.handle('launcher:ext-popup', (_evt, { extPath }) => {
+  const active = views.find((v) => v.view);
+  if (!active) return { ok: false, error: 'nenhum slot ativo' };
+  const ses = session.fromPartition(active.partition);
+  const ext = ses.getAllExtensions().find((e) => path.normalize(e.path) === path.normalize(extPath));
+  if (!ext) return { ok: false, error: 'extensão não carregada (recarregue o app)' };
+  const manifest = ext.manifest || {};
+  const popup =
+    (manifest.action && manifest.action.default_popup) ||
+    (manifest.browser_action && manifest.browser_action.default_popup);
+  if (!popup) return { ok: false, error: 'essa extensão não tem popup' };
+  const w = new BrowserWindow({
+    width: 420,
+    height: 640,
+    title: ext.name,
+    autoHideMenuBar: true,
+    webPreferences: { partition: active.partition },
+  });
+  w.loadURL(`chrome-extension://${ext.id}/${popup}`);
   return { ok: true };
 });
 

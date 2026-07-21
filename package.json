@@ -1,6 +1,6 @@
 {
   "name": "multi-idle-launcher",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Launcher multi-conta para jogos idle no navegador - abre N sessoes isoladas em grade dentro de uma janela.",
   "main": "src/main.js",
   "scripts": {
