@@ -23,8 +23,6 @@ function renderSlots(slots) {
       <input type="text" value="${s.url}" data-slot="${s.slot}" class="url-input" />
       <button data-act="go" data-slot="${s.slot}">Ir</button>
       <button data-act="reload" data-slot="${s.slot}">⟳</button>
-      <button data-act="dev" data-slot="${s.slot}">DevTools</button>
-      <button data-act="inject" data-slot="${s.slot}">Script</button>
       <button data-act="suspend" data-slot="${s.slot}" class="${s.suspended ? 'on' : ''}"
         title="${s.suspended ? 'Retomar slot (recria o processo)' : 'Suspender slot (libera a RAM, mantém login)'}">💤</button>
       <button data-act="media" data-slot="${s.slot}" class="${s.blockMedia ? 'on' : ''}"
