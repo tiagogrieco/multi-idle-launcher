@@ -1,0 +1,26 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('launcher', {
+  setLayout: (rows, cols) => ipcRenderer.invoke('launcher:set-layout', { rows, cols }),
+  navigate: (slot, url) => ipcRenderer.invoke('launcher:navigate', { slot, url }),
+  reload: (slot) => ipcRenderer.invoke('launcher:reload', { slot }),
+  devtools: (slot) => ipcRenderer.invoke('launcher:devtools', { slot }),
+  inject: (slot, code) => ipcRenderer.invoke('launcher:inject', { slot, code }),
+  saveProfile: (name) => ipcRenderer.invoke('launcher:save-profile', { name }),
+  listProfiles: () => ipcRenderer.invoke('launcher:list-profiles'),
+  loadProfile: (name) => ipcRenderer.invoke('launcher:load-profile', { name }),
+  getState: () => ipcRenderer.invoke('launcher:get-state'),
+  toggleSuspend: (slot) => ipcRenderer.invoke('launcher:toggle-suspend', { slot }),
+  toggleMedia: (slot) => ipcRenderer.invoke('launcher:toggle-media', { slot }),
+  metrics: () => ipcRenderer.invoke('launcher:metrics'),
+  getSettings: () => ipcRenderer.invoke('launcher:get-settings'),
+  setLiteMode: (enabled) => ipcRenderer.invoke('launcher:set-lite-mode', { enabled }),
+  setKeepBackground: (enabled) => ipcRenderer.invoke('launcher:set-keep-background', { enabled }),
+  restart: () => ipcRenderer.invoke('launcher:restart'),
+  extList: () => ipcRenderer.invoke('launcher:ext-list'),
+  extAdd: () => ipcRenderer.invoke('launcher:ext-add'),
+  extRemove: (extPath) => ipcRenderer.invoke('launcher:ext-remove', { extPath }),
+  checkUpdate: () => ipcRenderer.invoke('launcher:check-update'),
+  openExternal: (url) => ipcRenderer.invoke('launcher:open-external', { url }),
+  onState: (cb) => ipcRenderer.on('launcher:state', (_evt, data) => cb(data)),
+});

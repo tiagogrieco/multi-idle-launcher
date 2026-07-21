@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Multi Idle Launcher</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #14161a; color: #ddd; font-family: Segoe UI, sans-serif; font-size: 12px; overflow: hidden; }
+  #toolbar { height: 96px; box-sizing: border-box; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
+  #top-row { display: flex; align-items: center; gap: 8px; }
+  #top-row select, #top-row input, #top-row button { background: #22252b; color: #ddd; border: 1px solid #3a3f47; border-radius: 4px; padding: 3px 6px; }
+  #slots-row { display: flex; gap: 6px; overflow-x: auto; flex: 1; }
+  .slot-ctrl { display: flex; align-items: center; gap: 3px; background: #1b1e23; border: 1px solid #2c3038; border-radius: 4px; padding: 3px 5px; white-space: nowrap; }
+  .slot-ctrl span { opacity: 0.6; width: 16px; text-align: center; }
+  .slot-ctrl input[type=text] { width: 160px; background: #22252b; color: #ddd; border: 1px solid #3a3f47; border-radius: 3px; padding: 2px 4px; }
+  .slot-ctrl button { background: #2c3038; color: #ddd; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer; }
+  .slot-ctrl button:hover { background: #3a3f47; }
+  #status { opacity: 0.6; margin-left: auto; }
+  .slot-ctrl button.on { background: #b3402a; }
+  .slot-ctrl .ram { opacity: 0.55; min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+  .placeholder { position: fixed; background: #1b1e23; border: 1px dashed #3a3f47; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px;
+    color: #888; cursor: pointer; z-index: 1; }
+  .placeholder:hover { border-color: #6a7180; color: #bbb; }
+  .opt-label { display: flex; align-items: center; gap: 4px; opacity: 0.85; white-space: nowrap; }
+  #extPanel { position: fixed; top: 34px; right: 8px; background: #1b1e23; border: 1px solid #3a3f47;
+    border-radius: 6px; padding: 8px; z-index: 20; min-width: 260px; display: flex; flex-direction: column; gap: 6px; }
+  #extPanel.hidden { display: none; }
+  .ext-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .ext-item button, #extAddBtn { background: #2c3038; color: #ddd; border: none; border-radius: 3px; padding: 2px 8px; cursor: pointer; }
+  .ext-hint { opacity: 0.5; font-size: 11px; max-width: 260px; }
+</style>
+</head>
+<body>
+  <div id="toolbar">
+    <div id="top-row">
+      <label>Layout:
+        <select id="layoutSelect">
+          <option value="1x1">1x1</option>
+          <option value="1x2">1x2</option>
+          <option value="2x2" selected>2x2</option>
+          <option value="2x3">2x3</option>
+          <option value="3x3">3x3</option>
+        </select>
+      </label>
+      <input id="profileName" type="text" placeholder="nome do perfil" style="width:120px" />
+      <button id="btnSave">Salvar perfil</button>
+      <select id="profileSelect"></select>
+      <button id="btnLoad">Carregar</button>
+      <button id="btnExt">Extensões</button>
+      <label class="opt-label"><input type="checkbox" id="liteMode" /> Modo leve</label>
+      <label class="opt-label"><input type="checkbox" id="keepBg" checked /> Rodar em 2º plano</label>
+      <button id="btnUpdate">Verificar atualização</button>
+      <span id="status"></span>
+    </div>
+    <div id="slots-row"></div>
+  </div>
+  <div id="placeholders"></div>
+  <div id="extPanel" class="hidden"></div>
+  <script src="renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "multi-idle-launcher",
+  "version": "0.1.0",
+  "description": "Launcher multi-conta para jogos idle no navegador - abre N sessoes isoladas em grade dentro de uma janela.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-packager . MultiIdleLauncher --platform=win32 --arch=x64 --out=release --overwrite --electron-version=32.3.3"
+  },
+  "author": "Tiago Moreira",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-packager": "^17.1.2"
+  }
+}
