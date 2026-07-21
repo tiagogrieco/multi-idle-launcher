@@ -136,14 +136,17 @@ function applyMediaBlock(entry) {
 
 // ---------------- Extensões (aplicadas em todos os slots) ----------------
 
+const extLoadErrors = {}; // path -> último erro de carregamento
+
 async function loadExtensionsIntoSession(ses) {
   const list = settings.extensions || [];
   for (const extPath of list) {
     try {
       const already = ses.getAllExtensions().some((e) => path.normalize(e.path) === path.normalize(extPath));
       if (!already) await ses.loadExtension(extPath, { allowFileAccess: true });
-    } catch (_err) {
-      // extensão incompatível/pasta inválida — ignora
+      delete extLoadErrors[extPath];
+    } catch (err) {
+      extLoadErrors[extPath] = String(err && err.message || err);
     }
   }
 }
@@ -384,7 +387,29 @@ ipcMain.handle('launcher:restart', () => {
 });
 
 ipcMain.handle('launcher:ext-list', () => {
-  return (settings.extensions || []).map((p) => ({ path: p, name: path.basename(p) }));
+  const activeSessions = views.filter((v) => v.view).map((v) => session.fromPartition(v.partition));
+  return (settings.extensions || []).map((p) => {
+    const norm = path.normalize(p);
+    let loadedIn = 0;
+    let name = path.basename(p);
+    let version = null;
+    for (const ses of activeSessions) {
+      const ext = ses.getAllExtensions().find((e) => path.normalize(e.path) === norm);
+      if (ext) {
+        loadedIn++;
+        name = ext.name;
+        version = ext.version || null;
+      }
+    }
+    return {
+      path: p,
+      name,
+      version,
+      loadedIn,
+      activeSlots: activeSessions.length,
+      error: extLoadErrors[p] || null,
+    };
+  });
 });
 
 ipcMain.handle('launcher:ext-add', async () => {

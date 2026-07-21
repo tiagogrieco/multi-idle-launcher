@@ -113,14 +113,24 @@ keepBg.addEventListener('change', async () => {
 
 async function renderExtPanel() {
   const list = await window.launcher.extList();
-  const items = list.map((e) => `
+  const items = list.map((e) => {
+    const active = e.loadedIn > 0;
+    const status = active
+      ? `ativa em ${e.loadedIn}/${e.activeSlots} slots`
+      : (e.error ? `erro: ${e.error}` : 'inativa');
+    return `
     <div class="ext-item">
-      <span title="${e.path}">${e.name}</span>
+      <span title="${e.path}">
+        <span class="ext-dot ${active ? 'ok' : 'off'}" title="${status.replace(/"/g, '&quot;')}"></span>
+        ${e.name}${e.version ? ' v' + e.version : ''}
+        <span class="ext-status">${status}</span>
+      </span>
       <span>
         <button data-popup="${e.path.replace(/"/g, '&quot;')}" title="Abrir a janelinha (popup) da extensão">popup</button>
         <button data-ext="${e.path.replace(/"/g, '&quot;')}">remover</button>
       </span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   extPanel.innerHTML = `
     ${items || '<div class="ext-hint">Nenhuma extensão adicionada.</div>'}
     <div class="ext-add-row">
